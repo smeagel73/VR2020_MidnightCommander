@@ -1,0 +1,222 @@
+#!/bin/sh
+#
+# Copyright (C) 2017 TDT GmbH
+#
+# This is free software, licensed under the GNU General Public License v2.
+# See https://www.gnu.org/licenses/gpl-2.0.txt for more information.
+#
+########################################################################
+
+. /lib/functions.sh
+. /lib/functions/network.sh
+. /usr/share/libubox/jshn.sh
+
+log() {
+logger -p daemon.debug -t "Skript" "$1"
+}
+
+# Einlesen der LEDs
+# LED ein (255) oder aus (0)
+LED0=$(cat /sys/class/leds/led0/brightness)
+LED1=$(cat /sys/class/leds/led1/brightness)
+LED2=$(cat /sys/class/leds/led2/brightness)
+LED3=$(cat /sys/class/leds/led3/brightness)
+LED4=$(cat /sys/class/leds/led4/brightness)
+LED5=$(cat /sys/class/leds/led5/brightness)
+LED6=$(cat /sys/class/leds/led6/brightness)
+LED7=$(cat /sys/class/leds/led7/brightness)
+LED8=$(cat /sys/class/leds/led8/brightness)
+
+
+# Prüft ob die datei alarmstate exisitert und legt diese an wenn nötig
+if [ -f /root/alarmstate ]; then
+ echo ""
+else
+ touch /root/alarmstate
+ chmod +x /root/alarmstate
+ echo "#!/bin/sh" > /root/alarmstate
+ echo "" >> /root/alarmstate
+ echo "WANSTATE=\"off\"" >> /root/alarmstate
+ echo "WWANSTATE=\"off\"" >> /root/alarmstate
+ echo "xDSLSTATE=\"off\"" >> /root/alarmstate
+ echo "" >> /root/alarmstate
+ echo "" >> /root/alarmstate
+ echo 'case $1 in' >> /root/alarmstate
+ echo " reset)" >> /root/alarmstate
+ echo " sed -i -e 3c'WANSTATE=\"off\"' /root/alarmstate" >> /root/alarmstate
+ echo " sed -i -e 4c'WWANSTATE=\"off\"' /root/alarmstate" >> /root/alarmstate
+ echo " sed -i -e 5c'xDSLSTATE=\"off\"' /root/alarmstate" >> /root/alarmstate
+ echo " /etc/init.d/./wwan_leds start" >> /root/alarmstate
+ echo " /etc/init.d/./led reload" >> /root/alarmstate
+ echo " ;;" >> /root/alarmstate
+ echo " status)" >> /root/alarmstate
+ echo ' echo "Alarmstatus WAN:" $WANSTATE' >> /root/alarmstate
+ echo ' echo "Alarmstatus WWAN:" $WWANSTATE' >> /root/alarmstate
+ echo ' echo "Alarmstatus DSL:" $xDSLSTATE' >> /root/alarmstate
+ echo " ;;" >> /root/alarmstate
+ echo "esac" >> /root/alarmstate
+fi
+
+
+# Einlesen des Alamrstates aus der Datei alarmstate
+# Werte der Variablen on/off
+FILE="/root/alarmstate"
+. $FILE
+
+
+
+### WAN - Events bei WAN up & down ####################################
+if [ "${ACTION}" == "ifup" ] && [ "${INTERFACE}" = "wan" ]
+then
+                if [ "$WWANSTATE" == off ] && [ "$xDSLSTATE" == off ] && [ "$WANSTATE" == on ]
+                        then
+                                sed -i -e 3c'WANSTATE="off"' /root/alarmstate
+                                WANSTATE="off"
+                                /etc/init.d/./wwan_leds start
+                                /etc/init.d/./led reload
+                                log "WAN UP-TEST"
+                                log "WAN ALARM LED OFF"
+                                log "KEINE VERBINDUNGSFEHLER MEHR VORHANDEN!"
+                        else
+                                sed -i -e 3c'WANSTATE="off"' /root/alarmstate
+                                WANSTATE="off"
+                                echo '0' > /sys/class/leds/led1/brightness
+                                log "WAN UP-TEST"
+                                log "WAN ALARM LED OFF"
+                                log "ES SIND NOCH VERBINDUNGSFEHLER VORHANDEN!"
+                fi
+fi
+
+
+if [ "${ACTION}" == "ifdown" ] && [ "${INTERFACE}" = "wan" ]
+then
+                if [ "$WWANSTATE" == off ] && [ "$xDSLSTATE" == off ] && [ "$WANSTATE" == off ]
+                        then
+                                sed -i -e 3c'WANSTATE="on"' /root/alarmstate
+                                WANSTATE="on"
+                                /etc/init.d/./wwan_leds stop
+                                sleep 5s
+                                echo '0' > /sys/class/leds/led0/brightness
+                                echo '255' > /sys/class/leds/led1/brightness
+                                echo '0' > /sys/class/leds/led2/brightness
+                                echo '0' > /sys/class/leds/led3/brightness
+                                echo '0' > /sys/class/leds/led4/brightness
+                                echo '0' > /sys/class/leds/led5/brightness
+                                echo '0' > /sys/class/leds/led6/brightness
+                                echo '255' > /sys/class/leds/led7/brightness
+                                echo '0' > /sys/class/leds/led8/brightness
+                        else
+                                sed -i -e 3c'WANSTATE="on"' /root/alarmstate
+                                WANSTATE="on"
+                                echo '255' > /sys/class/leds/led1/brightness
+                fi
+        log "WAN DOWN-TEST"
+        log "WAN ALARM LED OFF"
+fi
+#-----------------------------------------------------------------------
+
+
+
+### XDSL - Events bei xDSL up & down ####################################
+if [ "${ACTION}" == "ifup" ] && [ "${INTERFACE}" = "xdsl" ]
+then
+                if [ "$WWANSTATE" == off ] && [ "$xDSLSTATE" == on ] && [ "$WANSTATE" == off ]
+                        then
+                                sed -i -e 5c'xDSLSTATE="off"' /root/alarmstate
+                                xDSLSTATE="off"
+                                /etc/init.d/./wwan_leds start
+                                /etc/init.d/./led reload
+                                log "xDSL UP-TEST"
+                                log "xDSL ALARM LED OFF"
+                                log "KEINE VERBINDUNGSFEHLER MEHR VORHANDEN!"
+                        else
+                                sed -i -e 5c'xDSLSTATE="off"' /root/alarmstate
+                                xDSLSTATE="off"
+                                echo '0' > /sys/class/leds/led8/brightness
+                                log "xDSL UP-TEST"
+                                log "xDSL ALARM LED OFF"
+                                log "ES SIND NOCH VERBINDUNGSFEHLER VORHANDEN!"
+                fi
+fi
+
+
+if [ "${ACTION}" == "ifdown" ] && [ "${INTERFACE}" = "xdsl" ]
+then
+                if [ "$WWANSTATE" == off ] && [ "$xDSLSTATE" == off ] && [ "$WANSTATE" == off ]
+                        then
+                                sed -i -e 5c'xDSLSTATE="on"' /root/alarmstate
+                                xDSLSTATE="on"
+                                /etc/init.d/./wwan_leds stop
+                                sleep 5s
+                                echo '0' > /sys/class/leds/led0/brightness
+                                echo '0' > /sys/class/leds/led1/brightness
+                                echo '0' > /sys/class/leds/led2/brightness
+                                echo '0' > /sys/class/leds/led3/brightness
+                                echo '0' > /sys/class/leds/led4/brightness
+                                echo '0' > /sys/class/leds/led5/brightness
+                                echo '0' > /sys/class/leds/led6/brightness
+                                echo '255' > /sys/class/leds/led7/brightness
+                                echo '255' > /sys/class/leds/led8/brightness
+                        else
+                                sed -i -e 5c'xDSLSTATE="on"' /root/alarmstate
+                                xDSLSTATE="on"
+                                echo '255' > /sys/class/leds/led8/brightness
+                fi
+        log "xDSL DOWN-TEST"
+        log "xDSL ALARM LED ON"
+fi
+#-----------------------------------------------------------------------
+
+
+
+### WWAN - Events bei WWAN (LTE) up & down ####################################
+if [ "${ACTION}" == "ifup" ] && [ "${INTERFACE}" = "wwan" ]
+then
+                if [ "$WWANSTATE" == on ] && [ "$xDSLSTATE" == off ] && [ "$WANSTATE" == off ]
+                        then
+                                sed -i -e 4c'WWANSTATE="off"' /root/alarmstate
+                                WWANSTATE="off"
+                                /etc/init.d/./wwan_leds start
+                                /etc/init.d/./led reload
+                                log "WWAN UP-TEST"
+                                log "WWAN ALARM LED OFF"
+                                log "KEINE VERBINDUNGSFEHLER MEHR VORHANDEN!"
+                        else
+                                sed -i -e 4c'WWANSTATE="off"' /root/alarmstate
+                                WWANSTATE="off"
+                                echo '0' > /sys/class/leds/led3/brightness
+                                log "WWAN UP-TEST"
+                                log "WWAN ALARM LED OFF"
+                                log "ES SIND NOCH VERBINDUNGSFEHLER VORHANDEN!"
+                fi
+fi
+
+if [ "${ACTION}" == "ifdown" ] && [ "${INTERFACE}" = "wwan" ]
+then
+                if [ "$WWANSTATE" == off ] && [ "$xDSLSTATE" == off ] && [ "$WANSTATE" == off ]
+                        then
+                                sed -i -e 4c'WWANSTATE="on"' /root/alarmstate
+                                WWANSTATE="on"
+                                /etc/init.d/./wwan_leds stop
+                                sleep 5s
+                                echo '0' > /sys/class/leds/led0/brightness
+                                echo '0' > /sys/class/leds/led1/brightness
+                                echo '0' > /sys/class/leds/led2/brightness
+                                echo '255' > /sys/class/leds/led3/brightness
+                                echo '0' > /sys/class/leds/led4/brightness
+                                echo '0' > /sys/class/leds/led5/brightness
+                                echo '0' > /sys/class/leds/led6/brightness
+                                echo '255' > /sys/class/leds/led7/brightness
+                                echo '0' > /sys/class/leds/led8/brightness
+                        else
+                                sed -i -e 4c'WWANSTATE="on"' /root/alarmstate
+                                WWANSTATE="on"
+                                echo '255' > /sys/class/leds/led3/brightness
+                fi
+        log "WWAN DOWN-TEST"
+        log "WWAN ALARM LED ON"
+fi
+#-----------------------------------------------------------------------
+
+
+
