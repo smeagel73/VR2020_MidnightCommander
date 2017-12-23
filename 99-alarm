@@ -15,208 +15,149 @@ log() {
 logger -p daemon.debug -t "Skript" "$1"
 }
 
-# Einlesen der LEDs
-# LED ein (255) oder aus (0)
-LED0=$(cat /sys/class/leds/led0/brightness)
-LED1=$(cat /sys/class/leds/led1/brightness)
-LED2=$(cat /sys/class/leds/led2/brightness)
-LED3=$(cat /sys/class/leds/led3/brightness)
-LED4=$(cat /sys/class/leds/led4/brightness)
-LED5=$(cat /sys/class/leds/led5/brightness)
-LED6=$(cat /sys/class/leds/led6/brightness)
-LED7=$(cat /sys/class/leds/led7/brightness)
-LED8=$(cat /sys/class/leds/led8/brightness)
-
-
-# Prüft ob die datei alarmstate exisitert und legt diese an wenn nötig
-if [ -f /root/alarmstate ]; then
- echo ""
-else
- touch /root/alarmstate
- chmod +x /root/alarmstate
- echo "#!/bin/sh" > /root/alarmstate
- echo "" >> /root/alarmstate
- echo "WANSTATE=\"off\"" >> /root/alarmstate
- echo "WWANSTATE=\"off\"" >> /root/alarmstate
- echo "xDSLSTATE=\"off\"" >> /root/alarmstate
- echo "" >> /root/alarmstate
- echo "" >> /root/alarmstate
- echo 'case $1 in' >> /root/alarmstate
- echo " reset)" >> /root/alarmstate
- echo " sed -i -e 3c'WANSTATE=\"off\"' /root/alarmstate" >> /root/alarmstate
- echo " sed -i -e 4c'WWANSTATE=\"off\"' /root/alarmstate" >> /root/alarmstate
- echo " sed -i -e 5c'xDSLSTATE=\"off\"' /root/alarmstate" >> /root/alarmstate
- echo " /etc/init.d/./wwan_leds start" >> /root/alarmstate
- echo " /etc/init.d/./led reload" >> /root/alarmstate
- echo " ;;" >> /root/alarmstate
- echo " status)" >> /root/alarmstate
- echo ' echo "Alarmstatus WAN:" $WANSTATE' >> /root/alarmstate
- echo ' echo "Alarmstatus WWAN:" $WWANSTATE' >> /root/alarmstate
- echo ' echo "Alarmstatus DSL:" $xDSLSTATE' >> /root/alarmstate
- echo " ;;" >> /root/alarmstate
- echo "esac" >> /root/alarmstate
-fi
-
-
-# Einlesen des Alamrstates aus der Datei alarmstate
-# Werte der Variablen on/off
-FILE="/root/alarmstate"
-. $FILE
-
+# Einlesen der Alarmstates (beim booten ist der Stauts 0)
+alarmstate_wan=$(uci_get_state network wan alarmstate 0)
+alarmstate_wwan=$(uci_get_state network wwan alarmstate 0)
+alarmstate_xdsl=$(uci_get_state network xdsl alarmstate 0)
 
 
 ### WAN - Events bei WAN up & down ####################################
-if [ "${ACTION}" == "ifup" ] && [ "${INTERFACE}" = "wan" ]
+if [ "${ACTION}" = "ifup" ] && [ "${INTERFACE}" = "wan" ]
 then
-                if [ "$WWANSTATE" == off ] && [ "$xDSLSTATE" == off ] && [ "$WANSTATE" == on ]
-                        then
-                                sed -i -e 3c'WANSTATE="off"' /root/alarmstate
-                                WANSTATE="off"
-                                /etc/init.d/./wwan_leds start
-                                /etc/init.d/./led reload
-                                log "WAN UP-TEST"
-                                log "WAN ALARM LED OFF"
-                                log "KEINE VERBINDUNGSFEHLER MEHR VORHANDEN!"
-                        else
-                                sed -i -e 3c'WANSTATE="off"' /root/alarmstate
-                                WANSTATE="off"
-                                echo '0' > /sys/class/leds/led1/brightness
-                                log "WAN UP-TEST"
-                                log "WAN ALARM LED OFF"
-                                log "ES SIND NOCH VERBINDUNGSFEHLER VORHANDEN!"
-                fi
+		if [ "$alarmstate_wwan" = 0 ] && [ "$alarmstate_xdsl" = 0 ] && [ "$alarmstate_wan" = 1 ]
+			then
+				uci_toggle_state network wan alarmstate 0
+				/etc/init.d/./wwan_leds start
+				/etc/init.d/./led reload
+			        log "WAN UP-TEST"
+			        log "WAN ALARM LED OFF"
+				log "KEINE VERBINDUNGSFEHLER MEHR VORHANDEN!"
+			else
+				uci_toggle_state network wan alarmstate 0
+				echo '0' > /sys/class/leds/led1/brightness
+			        log "WAN UP-TEST"
+			        log "WAN ALARM LED OFF"
+				log "ES SIND NOCH VERBINDUNGSFEHLER VORHANDEN!"
+		fi
 fi
 
 
-if [ "${ACTION}" == "ifdown" ] && [ "${INTERFACE}" = "wan" ]
+if [ "${ACTION}" = "ifdown" ] && [ "${INTERFACE}" = "wan" ]
 then
-                if [ "$WWANSTATE" == off ] && [ "$xDSLSTATE" == off ] && [ "$WANSTATE" == off ]
-                        then
-                                sed -i -e 3c'WANSTATE="on"' /root/alarmstate
-                                WANSTATE="on"
-                                /etc/init.d/./wwan_leds stop
-                                sleep 5s
-                                echo '0' > /sys/class/leds/led0/brightness
-                                echo '255' > /sys/class/leds/led1/brightness
-                                echo '0' > /sys/class/leds/led2/brightness
-                                echo '0' > /sys/class/leds/led3/brightness
-                                echo '0' > /sys/class/leds/led4/brightness
-                                echo '0' > /sys/class/leds/led5/brightness
-                                echo '0' > /sys/class/leds/led6/brightness
-                                echo '255' > /sys/class/leds/led7/brightness
-                                echo '0' > /sys/class/leds/led8/brightness
-                        else
-                                sed -i -e 3c'WANSTATE="on"' /root/alarmstate
-                                WANSTATE="on"
-                                echo '255' > /sys/class/leds/led1/brightness
-                fi
-        log "WAN DOWN-TEST"
-        log "WAN ALARM LED OFF"
+		if [ "$alarmstate_wwan" = 0 ] && [ "$alarmstate_xdsl" = 0 ] && [ "$alarmstate_wan" = 0 ]
+			then
+				uci_toggle_state alarmstate wan 1
+				/etc/init.d/./wwan_leds stop
+				sleep 5s
+				echo '0' > /sys/class/leds/led0/brightness
+				echo '255' > /sys/class/leds/led1/brightness
+				echo '0' > /sys/class/leds/led2/brightness
+				echo '0' > /sys/class/leds/led3/brightness
+				echo '0' > /sys/class/leds/led4/brightness
+				echo '0' > /sys/class/leds/led5/brightness
+				echo '0' > /sys/class/leds/led6/brightness
+				echo '255' > /sys/class/leds/led7/brightness
+				echo '0' > /sys/class/leds/led8/brightness
+			else
+				uci_toggle_state alarmstate wan 1
+				echo '255' > /sys/class/leds/led1/brightness
+		fi
+	log "WAN DOWN-TEST"
+	log "WAN ALARM LED OFF"
 fi
 #-----------------------------------------------------------------------
 
 
 
 ### XDSL - Events bei xDSL up & down ####################################
-if [ "${ACTION}" == "ifup" ] && [ "${INTERFACE}" = "xdsl" ]
+if [ "${ACTION}" = "ifup" ] && [ "${INTERFACE}" = "xdsl" ]
 then
-                if [ "$WWANSTATE" == off ] && [ "$xDSLSTATE" == on ] && [ "$WANSTATE" == off ]
-                        then
-                                sed -i -e 5c'xDSLSTATE="off"' /root/alarmstate
-                                xDSLSTATE="off"
-                                /etc/init.d/./wwan_leds start
-                                /etc/init.d/./led reload
-                                log "xDSL UP-TEST"
-                                log "xDSL ALARM LED OFF"
+		if [ "$alarmstate_wwan" = 0 ] && [ "$alarmstate_xdsl" = 1 ] && [ "$alarmstate_wan" = 0 ]
+			then
+				uci_toggle_state network xdsl alarmstate 0
+				/etc/init.d/./wwan_leds start
+				/etc/init.d/./led reload
+				log "xDSL UP-TEST"
+				log "xDSL ALARM LED OFF"
                                 log "KEINE VERBINDUNGSFEHLER MEHR VORHANDEN!"
-                        else
-                                sed -i -e 5c'xDSLSTATE="off"' /root/alarmstate
-                                xDSLSTATE="off"
-                                echo '0' > /sys/class/leds/led8/brightness
-                                log "xDSL UP-TEST"
-                                log "xDSL ALARM LED OFF"
+			else
+				uci_toggle_state network xdsl alarmstate 0
+				echo '0' > /sys/class/leds/led8/brightness
+			        log "xDSL UP-TEST"
+			        log "xDSL ALARM LED OFF"
                                 log "ES SIND NOCH VERBINDUNGSFEHLER VORHANDEN!"
-                fi
+		fi
 fi
 
 
-if [ "${ACTION}" == "ifdown" ] && [ "${INTERFACE}" = "xdsl" ]
+if [ "${ACTION}" = "ifdown" ] && [ "${INTERFACE}" = "xdsl" ]
 then
-                if [ "$WWANSTATE" == off ] && [ "$xDSLSTATE" == off ] && [ "$WANSTATE" == off ]
-                        then
-                                sed -i -e 5c'xDSLSTATE="on"' /root/alarmstate
-                                xDSLSTATE="on"
-                                /etc/init.d/./wwan_leds stop
-                                sleep 5s
-                                echo '0' > /sys/class/leds/led0/brightness
-                                echo '0' > /sys/class/leds/led1/brightness
-                                echo '0' > /sys/class/leds/led2/brightness
-                                echo '0' > /sys/class/leds/led3/brightness
-                                echo '0' > /sys/class/leds/led4/brightness
-                                echo '0' > /sys/class/leds/led5/brightness
-                                echo '0' > /sys/class/leds/led6/brightness
-                                echo '255' > /sys/class/leds/led7/brightness
-                                echo '255' > /sys/class/leds/led8/brightness
-                        else
-                                sed -i -e 5c'xDSLSTATE="on"' /root/alarmstate
-                                xDSLSTATE="on"
-                                echo '255' > /sys/class/leds/led8/brightness
-                fi
-        log "xDSL DOWN-TEST"
-        log "xDSL ALARM LED ON"
+		if [ "$alarmstate_wwan" = 0 ] && [ "$alarmstate_xdsl" = 0 ] && [ "$alarmstate_wan" = 0 ]
+			then
+				uci_toggle_state network xdsl alarmstate 1
+				/etc/init.d/./wwan_leds stop
+				sleep 5s
+				echo '0' > /sys/class/leds/led0/brightness
+				echo '0' > /sys/class/leds/led1/brightness
+				echo '0' > /sys/class/leds/led2/brightness
+				echo '0' > /sys/class/leds/led3/brightness
+				echo '0' > /sys/class/leds/led4/brightness
+				echo '0' > /sys/class/leds/led5/brightness
+				echo '0' > /sys/class/leds/led6/brightness
+				echo '255' > /sys/class/leds/led7/brightness
+				echo '255' > /sys/class/leds/led8/brightness
+			else
+				uci_toggle_state network xdsl alarmstate 1
+				echo '255' > /sys/class/leds/led8/brightness
+		fi
+	log "xDSL DOWN-TEST"
+	log "xDSL ALARM LED ON"
 fi
 #-----------------------------------------------------------------------
 
 
 
 ### WWAN - Events bei WWAN (LTE) up & down ####################################
-if [ "${ACTION}" == "ifup" ] && [ "${INTERFACE}" = "wwan" ]
+if [ "${ACTION}" = "ifup" ] && [ "${INTERFACE}" = "wwan" ]
 then
-                if [ "$WWANSTATE" == on ] && [ "$xDSLSTATE" == off ] && [ "$WANSTATE" == off ]
-                        then
-                                sed -i -e 4c'WWANSTATE="off"' /root/alarmstate
-                                WWANSTATE="off"
-                                /etc/init.d/./wwan_leds start
-                                /etc/init.d/./led reload
-                                log "WWAN UP-TEST"
-                                log "WWAN ALARM LED OFF"
+		if [ "$alarmstate_wwan" = 1 ] && [ "$alarmstate_xdsl" = 0 ] && [ "$alarmstate_wan" = 0 ]
+			then
+				uci_toggle_state network wwan alarmstate 0					
+				/etc/init.d/./wwan_leds start
+				/etc/init.d/./led reload
+			        log "WWAN UP-TEST"
+			        log "WWAN ALARM LED OFF"
                                 log "KEINE VERBINDUNGSFEHLER MEHR VORHANDEN!"
-                        else
-                                sed -i -e 4c'WWANSTATE="off"' /root/alarmstate
-                                WWANSTATE="off"
-                                echo '0' > /sys/class/leds/led3/brightness
-                                log "WWAN UP-TEST"
-                                log "WWAN ALARM LED OFF"
+			else
+				uci_toggle_state network wwan alarmstate 0
+				echo '0' > /sys/class/leds/led3/brightness
+			        log "WWAN UP-TEST"
+			        log "WWAN ALARM LED OFF"
                                 log "ES SIND NOCH VERBINDUNGSFEHLER VORHANDEN!"
-                fi
+		fi
 fi
 
-if [ "${ACTION}" == "ifdown" ] && [ "${INTERFACE}" = "wwan" ]
+if [ "${ACTION}" = "ifdown" ] && [ "${INTERFACE}" = "wwan" ]
 then
-                if [ "$WWANSTATE" == off ] && [ "$xDSLSTATE" == off ] && [ "$WANSTATE" == off ]
-                        then
-                                sed -i -e 4c'WWANSTATE="on"' /root/alarmstate
-                                WWANSTATE="on"
-                                /etc/init.d/./wwan_leds stop
-                                sleep 5s
-                                echo '0' > /sys/class/leds/led0/brightness
-                                echo '0' > /sys/class/leds/led1/brightness
-                                echo '0' > /sys/class/leds/led2/brightness
-                                echo '255' > /sys/class/leds/led3/brightness
-                                echo '0' > /sys/class/leds/led4/brightness
-                                echo '0' > /sys/class/leds/led5/brightness
-                                echo '0' > /sys/class/leds/led6/brightness
-                                echo '255' > /sys/class/leds/led7/brightness
-                                echo '0' > /sys/class/leds/led8/brightness
-                        else
-                                sed -i -e 4c'WWANSTATE="on"' /root/alarmstate
-                                WWANSTATE="on"
-                                echo '255' > /sys/class/leds/led3/brightness
-                fi
-        log "WWAN DOWN-TEST"
-        log "WWAN ALARM LED ON"
+		if [ "$alamrstate_wwan" = 0 ] && [ "$alarmstate_xdsl" = 0 ] && [ "$alarmstate_wan" = 0 ]
+			then
+				uci_toggle_state network wwan alarmstate 1
+				/etc/init.d/./wwan_leds stop
+				sleep 5s
+				echo '0' > /sys/class/leds/led0/brightness
+				echo '0' > /sys/class/leds/led1/brightness
+				echo '0' > /sys/class/leds/led2/brightness
+				echo '255' > /sys/class/leds/led3/brightness
+				echo '0' > /sys/class/leds/led4/brightness
+				echo '0' > /sys/class/leds/led5/brightness
+				echo '0' > /sys/class/leds/led6/brightness
+				echo '255' > /sys/class/leds/led7/brightness
+				echo '0' > /sys/class/leds/led8/brightness
+			else
+				uci_toggle_state network wwan alarmstate 1
+				echo '255' > /sys/class/leds/led3/brightness
+		fi
+	log "WWAN DOWN-TEST"
+	log "WWAN ALARM LED ON"
 fi
 #-----------------------------------------------------------------------
-
-
-
