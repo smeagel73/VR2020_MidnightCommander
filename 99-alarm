@@ -20,7 +20,6 @@ alarmstate_wan=$(uci_get_state network wan alarmstate 0)
 alarmstate_wwan=$(uci_get_state network wwan alarmstate 0)
 alarmstate_xdsl=$(uci_get_state network xdsl alarmstate 0)
 
-mailadress=mail@skoti.de
 
 
 ### WAN - Events bei WAN up & down ####################################
