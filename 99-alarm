@@ -20,6 +20,7 @@ alarmstate_wan=$(uci_get_state network wan alarmstate 0)
 alarmstate_wwan=$(uci_get_state network wwan alarmstate 0)
 alarmstate_xdsl=$(uci_get_state network xdsl alarmstate 0)
 
+mailadress=mail@skoti.de
 
 
 ### WAN - Events bei WAN up & down ####################################
@@ -27,21 +28,31 @@ if [ "${ACTION}" = "ifup" ] && [ "${INTERFACE}" = "wan" ]
 then
 		if [ "$alarmstate_wwan" = 0 ] && [ "$alarmstate_xdsl" = 0 ] && [ "$alarmstate_wan" = 1 ]
 			then
-				uci_toggle_state network wan alarmstate 0					
+				uci_toggle_state network wan alarmstate 0
+				alarmstate_wan=$(uci_get_state network wan alarmstate)					
 				/etc/init.d/./wwan_leds start
 				/etc/init.d/./led reload
-			        log "WAN UP - Interface WAN ist up"
-			        log "WAN Alarm LED off"
-                                log "Keine Verbindungsfehler mehr vorhanden"
+			    	log "WAN UP - Interface WAN ist up"
+			    	log "WAN Alarm LED off"
+                log "Keine Verbindungsfehler mehr vorhanden"
 		elif [ "$alarmstate_wwan" = 0 ] && [ "$alarmstate_xdsl" = 0 ] && [ "$alarmstate_wan" = 0 ]
 			then
 				exit
-		else
-				uci_toggle_state network wan alarmstate 0
-				echo '0' > /sys/class/leds/led1/brightness
-			        log "xDSL UP - Interface xDSL ist up"
-			        log "xDSL Alarm LED off"
-                                log "ES SIND NOCH VERBINDUNGSFEHLER VORHANDEN!"
+			else
+				if [ "$alarmstate_wan" = 1 ]
+					then
+						uci_toggle_state network wan alarmstate 0
+						alarmstate_wan=$(uci_get_state network wan alarmstate)
+						echo '0' > /sys/class/leds/led1/brightness
+			        		log "WAN UP - Interface WAN ist up"
+			        		log "WAN Alarm LED off"
+                        			log "ES SIND NOCH VERBINDUNGSFEHLER VORHANDEN!"
+						log "WWAN: $alarmstate_wwan"
+						log "xDSL: $alarmstate_xdsl"
+						log "WAN: $alarmstate_wan"
+					else
+						exit
+				fi
 		fi
 fi
 
@@ -61,15 +72,20 @@ then
 				echo '0' > /sys/class/leds/led6/brightness
 				echo '255' > /sys/class/leds/led7/brightness
 				echo '0' > /sys/class/leds/led8/brightness
-			        log "WAN DOWN - Interface WAN ist down"
-			        log "WAN Alarm LED on"
+			    	log "WAN DOWN - Interface WAN ist down"
+			    	log "WAN Alarm LED on"
 				log "Keine weiteren Interfaces mit Fehler"
-		else
+			else
 				uci_toggle_state network wan alarmstate 1
+				alarmstate_wan=$(uci_get_state network wan alarmstate)
 				echo '255' > /sys/class/leds/led1/brightness
-			        log "WAN DOWN - Interface xDSL ist down"
-			        log "WAN Alarm LED on"
+			    	log "WAN DOWN - Interface WAN ist down"
+			    	log "WAN Alarm LED on"
 				log "WEITERE INTERFACES MIT FEHLERN VORHANDEN!"
+				log "WWAN: $alarmstate_wwan"
+				log "xDSL: $alarmstate_xdsl"
+				log "WAN: $alarmstate_wan"
+				
 		fi
 fi
 #-----------------------------------------------------------------------
@@ -81,21 +97,31 @@ if [ "${ACTION}" = "ifup" ] && [ "${INTERFACE}" = "xdsl" ]
 then
 		if [ "$alarmstate_wwan" = 0 ] && [ "$alarmstate_xdsl" = 1 ] && [ "$alarmstate_wan" = 0 ]
 			then
-				uci_toggle_state network xdsl alarmstate 0					
+				uci_toggle_state network xdsl alarmstate 0
+				alarmstate_xdsl=$(uci_get_state network xdsl alarmstate)					
 				/etc/init.d/./wwan_leds start
 				/etc/init.d/./led reload
-			        log "xDSL UP - Interface xDSL ist up"
-			        log "xDSL Alarm LED off"
-                                log "Keine Verbindungsfehler mehr vorhanden"
+			    	log "xDSL UP - Interface xDSL ist up"
+			    	log "xDSL Alarm LED off"
+                		log "Keine Verbindungsfehler mehr vorhanden"
 		elif [ "$alarmstate_wwan" = 0 ] && [ "$alarmstate_xdsl" = 0 ] && [ "$alarmstate_wan" = 0 ]
 			then
 				exit
 		else
-				uci_toggle_state network xdsl alarmstate 0
-				echo '0' > /sys/class/leds/led8/brightness
-			        log "xDSL UP - Interface xDSL ist up"
-			        log "xDSL Alarm LED off"
-                                log "ES SIND NOCH VERBINDUNGSFEHLER VORHANDEN!"
+				if [ "$alarmstate_xdsl" = 1 ]
+					then
+						uci_toggle_state network xdsl alarmstate 0
+						alarmstate_xdsl=$(uci_get_state network xdsl alarmstate)
+						echo '0' > /sys/class/leds/led8/brightness
+			        		log "xDSL UP - Interface xDSL ist up"
+			        		log "xDSL Alarm LED off"
+                        			log "ES SIND NOCH VERBINDUNGSFEHLER VORHANDEN!"
+						log "WWAN: $alarmstate_wwan"
+						log "xDSL: $alarmstate_xdsl"
+						log "WAN: $alarmstate_wan"
+					else
+					exit	
+				fi
 		fi
 fi
 
@@ -118,12 +144,17 @@ then
 			        log "xDSL DOWN - Interface xDSL ist down"
 			        log "xDSL Alarm LED on"
 				log "Keine weiteren Interfaces mit Fehler"
-		else
+			else
 				uci_toggle_state network xdsl alarmstate 1
+				alarmstate_xdsl=$(uci_get_state network xdsl alarmstate)
 				echo '255' > /sys/class/leds/led8/brightness
-			        log "xDSL DOWN - Interface xDSL ist down"
-			        log "xDSL Alarm LED on"
+			    	log "xDSL DOWN - Interface xDSL ist down"
+			    	log "xDSL Alarm LED on"
 				log "WEITERE INTERFACES MIT FEHLERN VORHANDEN!"
+				log "WWAN: $alarmstate_wwan"
+				log "xDSL: $alarmstate_xdsl"
+				log "WAN: $alarmstate_wan"
+				echo -e "To:\nFrom:alarm@VR2020-LD\nSUBJECT:Interface xDSL down\n\nDas Interface xDSL ist down, WEITERE Interfaces mit Fehler vorhanden: \nAlarmstatus WAN: $alarmstate_wan\nAlarmstatus WWAN: $alarmstate_wwan\nAlarmstatus DSL: $alarmstate_xdsl" | ssmtp -vvv $mailadress
 		fi
 fi
 #-----------------------------------------------------------------------
@@ -136,21 +167,31 @@ if [ "${ACTION}" = "ifup" ] && [ "${INTERFACE}" = "wwan" ]
 then
 		if [ "$alarmstate_wwan" = 1 ] && [ "$alarmstate_xdsl" = 0 ] && [ "$alarmstate_wan" = 0 ]
 			then
-				uci_toggle_state network wwan alarmstate 0					
+				uci_toggle_state network wwan alarmstate 0
+				alarmstate_wwan=$(uci_get_state network wwan alarmstate)					
 				/etc/init.d/./wwan_leds start
 				/etc/init.d/./led reload
-			        log "WWAN UP - Interface WWAN ist up"
-			        log "WWAN Alarm LED off"
-                                log "Keine Verbindungsfehler mehr vorhanden"
+			    	log "WWAN UP - Interface WWAN ist up"
+			    	log "WWAN Alarm LED off"
+                		log "Keine Verbindungsfehler mehr vorhanden"
 		elif [ "$alarmstate_wwan" = 0 ] && [ "$alarmstate_xdsl" = 0 ] && [ "$alarmstate_wan" = 0 ]
 			then
 				exit
 		else
-				uci_toggle_state network wwan alarmstate 0
-				echo '0' > /sys/class/leds/led3/brightness
-			        log "WWAN UP - Interface WWAN ist up"
-			        log "WWAN Alarm LED off"
-                                log "ES SIND NOCH VERBINDUNGSFEHLER VORHANDEN!"
+				if [ "$alarmstate_wwan" = 1 ]
+					then
+						uci_toggle_state network wwan alarmstate 0
+						alarmstate_wwan=$(uci_get_state network wwan alarmstate)
+						echo '0' > /sys/class/leds/led3/brightness
+			        		log "WWAN UP - Interface WWAN ist up"
+			        		log "WWAN Alarm LED off"
+                        			log "ES SIND NOCH VERBINDUNGSFEHLER VORHANDEN!"
+						log "WWAN: $alarmstate_wwan"
+						log "xDSL: $alarmstate_xdsl"
+						log "WAN: $alarmstate_wan"
+					else
+						exit
+				fi
 		fi
 fi
 
@@ -175,11 +216,15 @@ then
 				log "Keine weiteren Interfaces mit Fehler"
 		else
 				uci_toggle_state network wwan alarmstate 1
+				alarmstate_wwan=$(uci_get_state network wwan alarmstate)
 				echo '255' > /sys/class/leds/led3/brightness
-			        log "WWAN DOWN - Interface WWAN ist down"
+			        log "WWAN DOWN - Interface xDSL ist down"
 			        log "WWAN Alarm LED on"
 				log "WEITERE INTERFACES MIT FEHLERN VORHANDEN!"
+				log "WWAN: $alarmstate_wwan"
+				log "xDSL: $alarmstate_xdsl"
+				log "WAN: $alarmstate_wan"
+				
 		fi
 fi
 #-----------------------------------------------------------------------
-
