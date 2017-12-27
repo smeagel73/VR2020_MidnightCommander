@@ -6,10 +6,10 @@ zu realisieren, wird folgendes Script unter /etc/hotplug.d/iface/
 angelegt (z.B. 99-alarm) und mit chmod +x /etc/hotplug.d/iface/99-alarm
 ausführbar gemacht:
 
-ACHTUNG AUCH HIER GILT:
+ACHTUNG - AUCH HIER GILT:
 
 DIE INSTALLATION ERFOLGT AUF EIGENE GEFAHR –
-KEINE GARANTIE, GEWÄHRLEISUNG ODER SUPPORT SEITENS DES HERSTELLERS!
+KEINE GARANTIE, GEWÄHRLEISTUNG ODER SUPPORT SEITENS DES HERSTELLERS!
 
 
 Somit werden die Alarmstates vorne über die LEDs angezeigt.
