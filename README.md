@@ -6,7 +6,7 @@ müssen folgende Schritte ausgeführt werden:
 
 - Eine SSH-Verbindung zum Router herstellen
   Dort folgenden Befehl ausführten:
-- wget https://www.dropbox.com/s/rumjmd5bj4s1qky/install_mc_VR2020.sh?dl=1 -O /root/install_mc_VR2020.sh
+- wget https://github.com/smeagel73/VR2020_MidnightCommander/blob/master/install_mc_VR2020.sh
 
 - Die Datei ausführbar machen mit:
   chmod +x install_mc_VR2020.sh
