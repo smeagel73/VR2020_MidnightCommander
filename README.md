@@ -1,23 +1,21 @@
-# VR2020_Alarm
-Alarm LEDs bei Verbindungswegfall beim TDT VR2020-D/LD
-
-Um bei dem VR2020 eine etwas „feinere“ Art der ALARM-LED
-zu realisieren, wird folgendes Script unter /etc/hotplug.d/iface/
-angelegt (z.B. 99-alarm) und mit chmod +x /etc/hotplug.d/iface/99-alarm
-ausführbar gemacht:
-
-ACHTUNG - AUCH HIER GILT:
-
-DIE INSTALLATION ERFOLGT AUF EIGENE GEFAHR –
-KEINE GARANTIE, GEWÄHRLEISTUNG ODER SUPPORT SEITENS DES HERSTELLERS!
+# Installation vom MidnightCommander auf dem VR2020
+Um den MidnightCommander auf dem VR2020 zu installieren
 
 
-Somit werden die Alarmstates vorne über die LEDs angezeigt.
+müssen folgende Schritte ausgeführt werden:
+
+- Eine SSH-Verbindung zum Router herstellen
+  Dort folgenden Befehl ausführten:
+- wget https://www.dropbox.com/s/rumjmd5bj4s1qky/install_mc_VR2020.sh?dl=1 -O /root/install_mc_VR2020.sh
+
+- Die Datei ausführbar machen mit:
+  chmod +x install_mc_VR2020.sh
+- Datei ausführen:
+  ./install_mc_VR2020.sh
+
+Die Installation beginnt daraufhin alle notwendigen Pakete zu downloaden und installiert den MidnightCommander
+Das war es auch schon - Wenn die Installation abeschlossen ist, kann der MidnightCommander mit
+mc -a
+aufgerufen werden.
 
 
-Um diese bei Bedarf manuell wieder zurücksetzen zu können,
-wird im Ordner /usr/sbin noch das folgende Script alarmstate erstellt und mit
-chmod +x alarmstate ausführbar gemacht:
-
-Damit kann der Status jederzeit mit alarmstate reset wieder auf 0 zurückgesetzt werden.
-Mit alarmstate status wird der momentane Alarmstatus der Interfaces angezeigt.
